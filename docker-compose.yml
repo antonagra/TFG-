@@ -1,0 +1,76 @@
+version: '3.8'
+
+services:
+  # 1. Nginx Proxy Manager 
+  npm:
+    image: 'jc21/nginx-proxy-manager:latest'
+    container_name: tfg_npm
+    restart: unless-stopped
+    ports:
+      - '80:80'     
+      - '443:443'  
+      - '81:81'    
+    volumes:
+      - npm_data:/data
+      - npm_letsencrypt:/etc/letsencrypt
+    networks:
+      - tfg
+  # 2. Base de Datos MariaDB 
+  db:
+    image: mariadb:10.6
+    container_name: tfg_mariadb
+    restart: unless-stopped
+    command: --transaction-isolation=READ-COMMITTED --binlog-format=ROW
+    environment:
+      - MYSQL_ROOT_PASSWORD=Abcd123..
+      - MYSQL_DATABASE=nextcloud_db
+      - MYSQL_USER=nextcloud_user
+      - MYSQL_PASSWORD=Abcd123..
+    volumes:
+      - db_data:/var/lib/mysql
+    networks:
+      - tfg_network
+
+  # 3. Nextcloud 
+  nextcloud:
+    image: nextcloud:latest
+    container_name: tfg_nextcloud
+    restart: unless-stopped
+    depends_on:
+      - db
+    environment:
+      # Conexión automática con la base de datos MariaDB
+      - MYSQL_HOST=db
+      - MYSQL_DATABASE=nextcloud_db
+      - MYSQL_USER=nextcloud_user
+      - MYSQL_PASSWORD=Abcd123..
+    volumes:
+      - nextcloud_data:/var/www/html
+    networks:
+      - tfg_
+
+  # 4. Vaultwarden 
+  vaultwarden:
+    image: vaultwarden/server:latest
+    container_name: tfg_vaultwarden
+    restart: unless-stopped
+    environment:
+      - WEBSOCKET_ENABLED=true
+    ports:
+           - '8081:80' 
+    volumes:
+      - vaultwarden_data:/data
+    networks:
+      - tfg
+
+volumes:
+  npm_data:
+  npm_letsencrypt:
+  db_data:
+  nextcloud_data:
+  vaultwarden_data:
+
+
+networks:
+  tfg:
+    name: tfg
